@@ -65,30 +65,29 @@ export default function useStargateHandlers(): {
 	// example handler for the get data command
 	const getDataCommandHandler = useCallback(
 		async (
-			data: ISdStargateGetDataCommandDto,
-			sessionData: SessionData,
+			{parameter: {id: parameterId}}: ISdStargateGetDataCommandDto,
+			{config, session}: SessionData,
 		): Promise<ISdStargateGetDataReplyDto> => {
 			// get the definition of the parameter for which data is requested
-			const paramDefinition =
-				sessionData.session.parameters![data.parameter.id];
+			const paramDef = session.parameters![parameterId];
 			// in this example we handle "File" parameters with "application/json" format
-			if (paramDefinition.type === "File") {
-				if (paramDefinition.format?.includes("application/json")) {
+			if (paramDef.type === "File") {
+				if (paramDef.format?.includes("application/json")) {
 					// request a file upload URL from the Geometry API
-					const response = await new FileApi(
-						sessionData.config,
-					).uploadFile(sessionData.session.sessionId, {
-						[data.parameter.id]: {
-							size: exampleJsonFile.size,
-							filename: "example.json",
-							format: "application/json",
+					const response = await new FileApi(config).uploadFile(
+						session.sessionId,
+						{
+							[parameterId]: {
+								size: exampleJsonFile.size,
+								filename: "example.json",
+								format: "application/json",
+							},
 						},
-					});
+					);
 					// extract the data for the file to be uploaded
-					const fileData =
-						response.data.asset.file[data.parameter.id];
+					const fileData = response.data.asset.file[parameterId];
 					// upload the file
-					await new UtilsApi(sessionData.config).upload(
+					await new UtilsApi(config).upload(
 						fileData.href,
 						exampleJsonFile,
 						"application/json",
