@@ -57,11 +57,32 @@ interface Props {
 	autoLogin?: boolean;
 }
 
+type ShapeDiverAuthStateType =
+	| "not_authenticated"
+	| "refresh_token_present"
+	| "authenticated"
+	| "authentication_in_progress";
+
 /**
  * Hook to manage authentication with ShapeDiver via OAuth2 Authorization Code Flow with PKCE.
  * @returns
  */
-export default function useShapeDiverAuth(props?: Props) {
+export default function useShapeDiverAuth(props?: Props): {
+	/** The access token. */
+	accessToken: string | undefined;
+	/** The refresh token. */
+	refreshToken: string | null;
+	/** Callback for initiating authorization code flow via the ShapeDiver platform. */
+	initiateShapeDiverAuth: () => Promise<void>;
+	/** Error type, if any. */
+	error: string | null;
+	/** Error description, if any. */
+	errorDescription: string | null;
+	/** Authenticate using the current refresh token. No need to call this if autoLogin is true. */
+	authUsingRefreshToken: () => Promise<void>;
+	/** Authentication state. */
+	authState: ShapeDiverAuthStateType;
+} {
 	const {autoLogin = false} = props || {};
 
 	// check for error and error description in URL parameters
@@ -74,11 +95,12 @@ export default function useShapeDiverAuth(props?: Props) {
 		code: string;
 		verifier: string;
 	} | null>(null);
-	// check whether local storage has a token stored
 	const [accessToken, setAccessToken] = useState<string | undefined>();
+	// try to get refresh token from local storage
 	const [refreshToken, setRefreshToken_] = useState(
 		window.localStorage.getItem(refreshTokenKey),
 	);
+
 	const setRefreshToken = useCallback((token: string | null) => {
 		if (token) {
 			window.localStorage.setItem(refreshTokenKey, token);
@@ -88,8 +110,15 @@ export default function useShapeDiverAuth(props?: Props) {
 		setRefreshToken_(token);
 	}, []);
 
-	// if there is an error, clear the local storage
+	// determine initial auth state
+	let authState_: ShapeDiverAuthStateType = refreshToken
+		? autoLogin
+			? "authentication_in_progress"
+			: "refresh_token_present"
+		: "not_authenticated";
+
 	if (error) {
+		// if there is an error, clear the local storage
 		clearBrowserStorage();
 	} else {
 		// check if we got a code and state in the URL parameters
@@ -119,6 +148,7 @@ export default function useShapeDiverAuth(props?: Props) {
 			} else if (state === window.localStorage.getItem(oauthStateKey)) {
 				// state is valid, now exchange the code for a token (handled in useEffect below)
 				setCodeData({code, verifier: storedVerifier});
+				authState_ = "authentication_in_progress";
 			} else {
 				// state is invalid, clear local storage and return error
 				setError("state mismatch");
@@ -130,6 +160,10 @@ export default function useShapeDiverAuth(props?: Props) {
 			window.localStorage.removeItem(codeVerifierKey);
 		}
 	}
+
+	// define auth state
+	const [authState, setAuthState] =
+		useState<ShapeDiverAuthStateType>(authState_);
 
 	// exchange code for token
 	useEffect(() => {
@@ -155,6 +189,7 @@ export default function useShapeDiverAuth(props?: Props) {
 					};
 					setAccessToken(data.access_token);
 					setRefreshToken(data.refresh_token);
+					setAuthState("authenticated");
 				} else {
 					const data = (await response.json()) as {
 						error?: string;
@@ -162,9 +197,13 @@ export default function useShapeDiverAuth(props?: Props) {
 					};
 					setError(data.error ?? null);
 					setErrorDescription(data.error_description ?? null);
+					setAccessToken(undefined);
+					setRefreshToken(null);
+					setAuthState("not_authenticated");
 				}
 			};
 			setCodeData(null);
+			setAuthState("authentication_in_progress");
 			getToken();
 		}
 	}, [codeData]);
@@ -180,22 +219,28 @@ export default function useShapeDiverAuth(props?: Props) {
 			const client = create({clientId, baseUrl: authBaseUrl});
 			try {
 				// TODO: pass refresh token
+				setAuthState("authentication_in_progress");
 				const data = await client.authorization.refreshToken();
 				setAccessToken(data.access_token);
 				setRefreshToken(data.refresh_token ?? null);
+				setAuthState("authenticated");
 			} catch (error) {
 				if (
 					isPBInvalidRequestOAuthResponseError(error) || // <-- thrown if the refresh token is not valid anymore or there is none
 					isPBInvalidGrantOAuthResponseError(error) // <-- thrown if the refresh token is generally invalid
 				) {
+					setAccessToken(undefined);
 					setRefreshToken(null);
+					setAuthState("not_authenticated");
 					setError("invalid refresh token");
 					setErrorDescription(
 						"The stored refresh token is invalid, please log in again.",
 					);
 					throw error;
 				} else {
+					setAccessToken(undefined);
 					setRefreshToken(null);
+					setAuthState("not_authenticated");
 					setError("refresh token login failed");
 					setErrorDescription(
 						"The refresh token login failed, please log in again.",
@@ -219,6 +264,7 @@ export default function useShapeDiverAuth(props?: Props) {
 		setCodeData(null);
 		setAccessToken(undefined);
 		setRefreshToken(null);
+		setAuthState("authentication_in_progress");
 		// clear previous tokens and state
 		clearBrowserStorage();
 		// Create a 64 character random string (from characters a-zA-Z0-9), we call this the secret code verifier.
@@ -256,5 +302,6 @@ export default function useShapeDiverAuth(props?: Props) {
 		error,
 		errorDescription,
 		authUsingRefreshToken,
+		authState,
 	};
 }

@@ -8,18 +8,28 @@ export default function HomePage() {
 		accessToken,
 		refreshToken,
 		initiateShapeDiverAuth,
+		authUsingRefreshToken,
+		authState,
 	} = useShapeDiverAuth({ autoLogin: true });
 
 	return (
 		<>
 			{error && <h1>Error: {error}</h1>}
 			{errorDescription && <p>Error description: {errorDescription}</p>}
+			<p>Authentication state: {authState}</p>
 			{accessToken && <p>Access Token: {accessToken}</p>}
 			{refreshToken && <div>Refresh Token: {refreshToken}</div>}
 			<p>
-				<button onClick={initiateShapeDiverAuth}>
-					Start ShapeDiver Auth
-				</button>
+				{authState === "not_authenticated" ? (
+					<button onClick={initiateShapeDiverAuth}>
+						Start ShapeDiver Auth
+					</button>
+				) : undefined}
+				{authState === "refresh_token_present" ? (
+					<button onClick={authUsingRefreshToken}>
+						Login using refresh token
+					</button>
+				) : undefined}
 			</p>
 		</>
 	);
