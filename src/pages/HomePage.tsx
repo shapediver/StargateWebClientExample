@@ -14,13 +14,12 @@ export default function HomePage() {
 		error,
 		errorDescription,
 		accessToken,
-		refreshToken,
 		initiateShapeDiverAuth,
 		authUsingRefreshToken,
 		authState,
 		platformSdk,
 	} = useShapeDiverAuth({ autoLogin: true });
-	const { stargateSdk } = useShapeDiverStargate({
+	const { stargateSdk, isActive } = useShapeDiverStargate({
 		accessToken,
 		platformSdk,
 		supportedData,
@@ -31,9 +30,11 @@ export default function HomePage() {
 			{error && <h1>Error: {error}</h1>}
 			{errorDescription && <p>Error description: {errorDescription}</p>}
 			<p>Authentication state: {authState}</p>
-			{accessToken && <p>Access Token: {accessToken}</p>}
-			{refreshToken && <p>Refresh Token: {refreshToken}</p>}
-			{stargateSdk && <p>Stargate SDK initialized</p>}
+			{stargateSdk && (
+				<p>
+					Stargate SDK initialized {isActive ? "(active)" : undefined}
+				</p>
+			)}
 			<p>
 				{authState === "not_authenticated" ? (
 					<button onClick={initiateShapeDiverAuth}>

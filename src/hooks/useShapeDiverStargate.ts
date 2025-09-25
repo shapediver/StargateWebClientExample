@@ -9,23 +9,41 @@ import {
 } from "@shapediver/sdk.platform-api-sdk-v1";
 import {
 	createSdk,
+	ISdStargateBakeDataCommandDto,
+	ISdStargateBakeDataReplyDto,
+	ISdStargateBakeDataResultEnum,
+	ISdStargateExportFileCommandDto,
+	ISdStargateExportFileReplyDto,
+	ISdStargateExportFileResultEnum,
+	ISdStargateGetDataCommandDto,
+	ISdStargateGetDataReplyDto,
+	ISdStargateGetDataResultEnum,
 	ISdStargateGetSupportedDataReplyDto,
 	ISdStargatePrepareModelCommandDto,
 	ISdStargatePrepareModelReplyDto,
 	ISdStargatePrepareModelResultEnum,
 	ISdStargateSdk,
 	ISdStargateStatusReplyDto,
+	SdStargateBakeDataCommand,
+	SdStargateExportFileCommand,
+	SdStargateGetDataCommand,
 	SdStargateGetSupportedDataCommand,
 	SdStargatePrepareModelCommand,
 	SdStargateStatusCommand,
 } from "@shapediver/sdk.stargate-sdk-v1";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import packagejson from "../../package.json";
 
 const firstActivity = Math.floor(Date.now() / 1000);
-const modelIdSessionMap: {
-	[key: string]: {config: Configuration; session: ResCreateSessionByTicket};
-} = {};
+
+type SessionData = {
+	config: Configuration;
+	session: ResCreateSessionByTicket;
+};
+
+type ModelIdSessionMapType = {
+	[key: string]: Promise<SessionData>;
+};
 
 interface Props {
 	/** The access token to use. */
@@ -46,15 +64,47 @@ interface Props {
 	 * or other external circumstances
 	 */
 	disconnectHandler?: (msg: string) => void;
+	/**
+	 * Handler for the get data command.
+	 * @param data
+	 * @param sessionData
+	 * @returns
+	 */
+	getDataCommandHandler?: (
+		data: ISdStargateGetDataCommandDto,
+		sessionData: SessionData,
+	) => Promise<ISdStargateGetDataReplyDto>;
+	/**
+	 * Handler for the bake data command.
+	 * @param data
+	 * @param sessionData
+	 * @returns
+	 */
+	bakeDataCommandHandler?: (
+		data: ISdStargateBakeDataCommandDto,
+		sessionData: SessionData,
+	) => Promise<ISdStargateBakeDataReplyDto>;
+	/**
+	 * Handler for the export file command.
+	 * @param data
+	 * @param sessionData
+	 * @returns
+	 */
+	exportFileCommandHandler?: (
+		data: ISdStargateExportFileCommandDto,
+		sessionData: SessionData,
+	) => Promise<ISdStargateExportFileReplyDto>;
 }
 
 /**
  * Hook to manage authentication with ShapeDiver via OAuth2 Authorization Code Flow with PKCE.
  * @returns
  */
-export default function useShapeDiverStargate(props?: Props): {
+export default function useShapeDiverStargate(props: Props): {
 	/** The platform SDK. In case no access token is present, an unauthenticated SDK will be returned. */
 	stargateSdk: ISdStargateSdk | null;
+	/** True if this Stargate client is currently being used by the user from a ShapeDiver App. */
+	isActive: boolean;
 } {
 	const {
 		accessToken,
@@ -63,9 +113,57 @@ export default function useShapeDiverStargate(props?: Props): {
 		serverCommandHandler,
 		connectionErrorHandler,
 		disconnectHandler,
-	} = props || {};
+		getDataCommandHandler,
+		bakeDataCommandHandler,
+		exportFileCommandHandler,
+	} = props;
 
 	const [stargateSdk, setStargateSdk] = useState<ISdStargateSdk | null>(null);
+	const [isActive, setIsActive_] = useState(false);
+	const timeoutRef = useRef<number | undefined>();
+	const setIsActive = useCallback(() => {
+		if (typeof timeoutRef.current === "number")
+			clearTimeout(timeoutRef.current);
+		setIsActive_(true);
+		timeoutRef.current = window.setTimeout(
+			() => setIsActive_(false),
+			35000,
+		);
+	}, []);
+	const modelIdSessionMapRef = useRef<ModelIdSessionMapType>({});
+
+	const getSessionDataForModelId = useCallback(
+		async (modelId: string) => {
+			const get = async (modelId: string) => {
+				const model = (
+					await platformSdk.models.get(modelId, [
+						SdPlatformModelGetEmbeddableFields.BackendSystem,
+						SdPlatformModelGetEmbeddableFields.Ticket,
+						SdPlatformModelGetEmbeddableFields.TokenExport,
+					])
+				).data;
+				const config = new Configuration({
+					accessToken: model.access_token,
+					basePath: model.backend_system!.model_view_url,
+				});
+				const session = (
+					await new SessionApi(config).createSessionByTicket(
+						model.ticket!.ticket!,
+					)
+				).data;
+
+				return {config, session};
+			};
+
+			// create a session for the model if none exists yet
+			if (!modelIdSessionMapRef.current[modelId]) {
+				modelIdSessionMapRef.current[modelId] = get(modelId);
+			}
+
+			return modelIdSessionMapRef.current[modelId];
+		},
+		[platformSdk],
+	);
 
 	useEffect(() => {
 		const init = async (jwt: string, platformSdk: SdPlatformSdk) => {
@@ -106,10 +204,13 @@ export default function useShapeDiverStargate(props?: Props): {
 			);
 			// register a handler for the status command
 			new SdStargateStatusCommand(sdk).registerHandler(
-				async (): Promise<ISdStargateStatusReplyDto> => ({
-					firstActivity,
-					latestActivity: Math.floor(Date.now() / 1000),
-				}),
+				async (): Promise<ISdStargateStatusReplyDto> => {
+					setIsActive();
+					return {
+						firstActivity,
+						latestActivity: Math.floor(Date.now() / 1000),
+					};
+				},
 			);
 			// register a handler for the get supported data command
 			new SdStargateGetSupportedDataCommand(sdk).registerHandler(
@@ -126,30 +227,82 @@ export default function useShapeDiverStargate(props?: Props): {
 				async (
 					data: ISdStargatePrepareModelCommandDto,
 				): Promise<ISdStargatePrepareModelReplyDto> => {
-					// create a session for the model if none exists yet
-					if (!modelIdSessionMap[data.model.id]) {
-						const model = (
-							await platformSdk.models.get(data.model.id, [
-								SdPlatformModelGetEmbeddableFields.BackendSystem,
-								SdPlatformModelGetEmbeddableFields.Ticket,
-								SdPlatformModelGetEmbeddableFields.TokenExport,
-							])
-						).data;
-						const config = new Configuration({
-							accessToken: model.access_token,
-							basePath: model.backend_system!.model_view_url,
-						});
-						const session = (
-							await new SessionApi(config).createSessionByTicket(
-								model.ticket!.ticket!,
-							)
-						).data;
-						modelIdSessionMap[data.model.id] = {config, session};
-					}
+					await getSessionDataForModelId(data.model.id);
 
 					return {
 						info: {
 							result: ISdStargatePrepareModelResultEnum.SUCCESS,
+						},
+					};
+				},
+			);
+			// register a handler for the get data command
+			new SdStargateGetDataCommand(sdk).registerHandler(
+				async (
+					data: ISdStargateGetDataCommandDto,
+				): Promise<ISdStargateGetDataReplyDto> => {
+					const sessionData = await getSessionDataForModelId(
+						data.model.id,
+					);
+					if (getDataCommandHandler) {
+						return getDataCommandHandler(data, sessionData);
+					}
+					console.warn(
+						"Received get data command, but no handler is registered.",
+						data,
+					);
+					return {
+						info: {
+							message: "No handler registered.",
+							result: ISdStargateGetDataResultEnum.NOTHING,
+							count: 0,
+						},
+					};
+				},
+			);
+			// register a handler for the bake data command
+			new SdStargateBakeDataCommand(sdk).registerHandler(
+				async (
+					data: ISdStargateBakeDataCommandDto,
+				): Promise<ISdStargateBakeDataReplyDto> => {
+					const sessionData = await getSessionDataForModelId(
+						data.model.id,
+					);
+					if (bakeDataCommandHandler) {
+						return bakeDataCommandHandler(data, sessionData);
+					}
+					console.warn(
+						"Received bake data command, but no handler is registered.",
+						data,
+					);
+					return {
+						info: {
+							message: "No handler registered.",
+							result: ISdStargateBakeDataResultEnum.NOTHING,
+							count: 0,
+						},
+					};
+				},
+			);
+			// register a handler for the export file command
+			new SdStargateExportFileCommand(sdk).registerHandler(
+				async (
+					data: ISdStargateExportFileCommandDto,
+				): Promise<ISdStargateExportFileReplyDto> => {
+					const sessionData = await getSessionDataForModelId(
+						data.model.id,
+					);
+					if (exportFileCommandHandler) {
+						return exportFileCommandHandler(data, sessionData);
+					}
+					console.warn(
+						"Received export file command, but no handler is registered.",
+						data,
+					);
+					return {
+						info: {
+							message: "No handler registered.",
+							result: ISdStargateExportFileResultEnum.NOTHING,
 						},
 					};
 				},
@@ -165,9 +318,13 @@ export default function useShapeDiverStargate(props?: Props): {
 		serverCommandHandler,
 		connectionErrorHandler,
 		disconnectHandler,
+		getDataCommandHandler,
+		bakeDataCommandHandler,
+		exportFileCommandHandler,
 	]);
 
 	return {
 		stargateSdk,
+		isActive,
 	};
 }
