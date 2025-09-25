@@ -36,7 +36,7 @@ import packagejson from "../../package.json";
 
 const firstActivity = Math.floor(Date.now() / 1000);
 
-type SessionData = {
+export type SessionData = {
 	config: Configuration;
 	session: ResCreateSessionByTicket;
 };
@@ -97,7 +97,7 @@ interface Props {
 }
 
 /**
- * Hook to manage authentication with ShapeDiver via OAuth2 Authorization Code Flow with PKCE.
+ * Hook providing a ShapeDiver Stargate Client implementation.
  * @returns
  */
 export default function useShapeDiverStargate(props: Props): {

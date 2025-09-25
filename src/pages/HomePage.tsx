@@ -1,13 +1,7 @@
-import { ISdStargateGetSupportedDataReplyDto } from "@shapediver/sdk.stargate-sdk-v1";
 import React from "react";
 import useShapeDiverAuth from "~/hooks/useShapeDiverAuth";
 import useShapeDiverStargate from "~/hooks/useShapeDiverStargate";
-
-const supportedData: Partial<ISdStargateGetSupportedDataReplyDto> = {
-	contentTypes: ["application/json"],
-	fileExtensions: ["json"],
-	parameterTypes: ["File"],
-};
+import useStargateHandlers from "~/hooks/useStargateHandlers";
 
 export default function HomePage() {
 	const {
@@ -19,10 +13,11 @@ export default function HomePage() {
 		authState,
 		platformSdk,
 	} = useShapeDiverAuth({ autoLogin: true });
+	const handlers = useStargateHandlers();
 	const { stargateSdk, isActive } = useShapeDiverStargate({
 		accessToken,
 		platformSdk,
-		supportedData,
+		...handlers,
 	});
 
 	return (
