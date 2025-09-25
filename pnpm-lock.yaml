@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@shapediver/sdk.platform-api-sdk-v1':
+    specifier: ^2.28.6
+    version: 2.28.6
   globals:
     specifier: ^16.4.0
     version: 16.4.0
@@ -2864,6 +2867,32 @@ packages:
     resolution: {integrity: sha512-5EwMtOqvJMMa3HbmxLlF74e+3/HhwBTMcvt3nqVJgGCozO6hzIPOBlwm8mGVNR9SN2IJpxSnlxczyDjcn7qIyw==}
     dev: false
 
+  /@shapediver/api.platform-api-dto-v1@2.28.6:
+    resolution: {integrity: sha512-vynUfjZz0KTcu9Ae9wekURsaiIm7qNO6CBVt75CMekyZCoCYqQ1MIgMeGrKaSQQgSPY4jKsMv+4xZJ1gl2+BqA==}
+    dependencies:
+      '@types/q': 1.5.8
+      chargebee-typescript: 2.16.0
+    dev: false
+
+  /@shapediver/sdk.geometry-api-sdk-v2@2.9.1:
+    resolution: {integrity: sha512-D9DBSrCgOtgLCzLyqDnDl08vcCf3e+PSLg1xDlXYvE5Z8JzHfVtgSYT/qoAj/5nCq3+YdFpv62cR09E1fSh7xQ==}
+    dependencies:
+      axios: 1.10.0
+    transitivePeerDependencies:
+      - debug
+    dev: false
+
+  /@shapediver/sdk.platform-api-sdk-v1@2.28.6:
+    resolution: {integrity: sha512-eUs8V0TQNtZSMs4AdWWpPwUlNS32DoGbJXwOhvevDcgoP+v94JTJcJUXGDH5iSWpJLX+Kgsb4QTn9uZS4t0Nyw==}
+    dependencies:
+      '@shapediver/api.platform-api-dto-v1': 2.28.6
+      '@shapediver/sdk.geometry-api-sdk-v2': 2.9.1
+      axios: 1.12.2
+      jwt-decode: 3.1.2
+    transitivePeerDependencies:
+      - debug
+    dev: false
+
   /@sinclair/typebox@0.24.51:
     resolution: {integrity: sha512-1P1OROm/rdubP5aFDSZQILU0vrLCJ4fvHt6EoqHEM+2D/G5MK3bIaymUKLit8Js9gbns5UyJnkP/TZROLw4tUA==}
     dev: false
@@ -4266,6 +4295,26 @@ packages:
     engines: {node: '>=4'}
     dev: false
 
+  /axios@1.10.0:
+    resolution: {integrity: sha512-/1xYAC4MP/HEG+3duIhFr4ZQXR4sQXOIe+o6sdqzeykGLx6Upp/1p8MHqhINOvGeP7xyNHe7tsiJByc4SSVUxw==}
+    dependencies:
+      follow-redirects: 1.15.11
+      form-data: 4.0.4
+      proxy-from-env: 1.1.0
+    transitivePeerDependencies:
+      - debug
+    dev: false
+
+  /axios@1.12.2:
+    resolution: {integrity: sha512-vMJzPewAlRyOgxV2dU0Cuz2O8zzzx9VYtbJOaBgXFeLc4IV/Eg50n4LowmehOOR61S8ZMpc2K5Sa7g6A4jfkUw==}
+    dependencies:
+      follow-redirects: 1.15.11
+      form-data: 4.0.4
+      proxy-from-env: 1.1.0
+    transitivePeerDependencies:
+      - debug
+    dev: false
+
   /axobject-query@4.1.0:
     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
     engines: {node: '>= 0.4'}
@@ -4690,6 +4739,13 @@ packages:
   /char-regex@2.0.2:
     resolution: {integrity: sha512-cbGOjAptfM2LVmWhwRFHEKTPkLwNddVmuqYZQt895yXwAsWsXObCG+YN4DGQ/JBtT4GP1a1lPPdio2z413LmTg==}
     engines: {node: '>=12.20'}
+    dev: false
+
+  /chargebee-typescript@2.16.0:
+    resolution: {integrity: sha512-w0xFnZ3GjMeHlne99tb/EXEEGDyORlMtdS1z7Hmz0g+emsANGI8zWrOXp1q5zqW2FWU+XdeguDgj3OCkmraOAA==}
+    engines: {node: '>=8.0.0'}
+    dependencies:
+      q: 1.5.1
     dev: false
 
   /check-types@11.2.3:
@@ -6500,6 +6556,17 @@ packages:
 
   /form-data@3.0.4:
     resolution: {integrity: sha512-f0cRzm6dkyVYV3nPoooP8XlccPQukegwhAnpoLcXy+X+A8KfpGOoXwDr9FLZd3wzgLaBGQBE3lY93Zm/i1JvIQ==}
+    engines: {node: '>= 6'}
+    dependencies:
+      asynckit: 0.4.0
+      combined-stream: 1.0.8
+      es-set-tostringtag: 2.1.0
+      hasown: 2.0.2
+      mime-types: 2.1.35
+    dev: false
+
+  /form-data@4.0.4:
+    resolution: {integrity: sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==}
     engines: {node: '>= 6'}
     dependencies:
       asynckit: 0.4.0
@@ -8464,6 +8531,10 @@ packages:
       object.assign: 4.1.7
       object.values: 1.2.1
 
+  /jwt-decode@3.1.2:
+    resolution: {integrity: sha512-UfpWE/VZn0iP50d8cz9NrZLM9lSWhcJ+0Gt/nm4by88UL+J1SiKN8/5dkjMmbEzwL2CAe+67GsegCbIKtbp75A==}
+    dev: false
+
   /keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
     dependencies:
@@ -10075,6 +10146,10 @@ packages:
     dependencies:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
+    dev: false
+
+  /proxy-from-env@1.1.0:
+    resolution: {integrity: sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==}
     dev: false
 
   /psl@1.15.0:

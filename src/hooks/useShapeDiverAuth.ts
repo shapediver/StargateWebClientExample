@@ -1,3 +1,8 @@
+import {
+	create,
+	isPBInvalidGrantOAuthResponseError,
+	isPBInvalidRequestOAuthResponseError,
+} from "@shapediver/sdk.platform-api-sdk-v1";
 import {useCallback, useEffect, useState} from "react";
 
 const refreshTokenKey = "shapediver_refresh_token";
@@ -47,11 +52,18 @@ function getRedirectUri() {
 	return window.location.origin + "/";
 }
 
+interface Props {
+	/** Log in automatically if a refresh token is available. */
+	autoLogin?: boolean;
+}
+
 /**
  * Hook to manage authentication with ShapeDiver via OAuth2 Authorization Code Flow with PKCE.
  * @returns
  */
-export default function useShapeDiverAuth() {
+export default function useShapeDiverAuth(props?: Props) {
+	const {autoLogin = false} = props || {};
+
 	// check for error and error description in URL parameters
 	const params = new URLSearchParams(window.location.search);
 	const [error, setError] = useState(params.get("error"));
@@ -105,7 +117,7 @@ export default function useShapeDiverAuth() {
 					"No stored code verifier found, please initiate the authentication flow again.",
 				);
 			} else if (state === window.localStorage.getItem(oauthStateKey)) {
-				// state is valid, now exchange the code for a token
+				// state is valid, now exchange the code for a token (handled in useEffect below)
 				setCodeData({code, verifier: storedVerifier});
 			} else {
 				// state is invalid, clear local storage and return error
@@ -119,6 +131,7 @@ export default function useShapeDiverAuth() {
 		}
 	}
 
+	// exchange code for token
 	useEffect(() => {
 		if (codeData) {
 			const getToken = async () => {
@@ -156,7 +169,49 @@ export default function useShapeDiverAuth() {
 		}
 	}, [codeData]);
 
-	// callback for initiating the authorization flow via the ShapeDiver platform
+	// callback for auth using refresh token
+	const authUsingRefreshToken = useCallback(async () => {
+		if (refreshToken) {
+			// reset state
+			setError(null);
+			setErrorDescription(null);
+			setCodeData(null);
+			// create SDK
+			const client = create({clientId, baseUrl: authBaseUrl});
+			try {
+				// TODO: pass refresh token
+				const data = await client.authorization.refreshToken();
+				setAccessToken(data.access_token);
+				setRefreshToken(data.refresh_token ?? null);
+			} catch (error) {
+				if (
+					isPBInvalidRequestOAuthResponseError(error) || // <-- thrown if the refresh token is not valid anymore or there is none
+					isPBInvalidGrantOAuthResponseError(error) // <-- thrown if the refresh token is generally invalid
+				) {
+					setRefreshToken(null);
+					setError("invalid refresh token");
+					setErrorDescription(
+						"The stored refresh token is invalid, please log in again.",
+					);
+					throw error;
+				} else {
+					setRefreshToken(null);
+					setError("refresh token login failed");
+					setErrorDescription(
+						"The refresh token login failed, please log in again.",
+					);
+					throw error;
+				}
+			}
+		}
+	}, [refreshToken]);
+
+	// optionally automatically log in
+	useEffect(() => {
+		if (autoLogin && refreshToken && !accessToken) authUsingRefreshToken();
+	}, [autoLogin, refreshToken, accessToken]);
+
+	// callback for initiating the authorization code flow via the ShapeDiver platform
 	const initiateShapeDiverAuth = useCallback(async () => {
 		// reset state
 		setError(null);
@@ -200,5 +255,6 @@ export default function useShapeDiverAuth() {
 		initiateShapeDiverAuth,
 		error,
 		errorDescription,
+		authUsingRefreshToken,
 	};
 }

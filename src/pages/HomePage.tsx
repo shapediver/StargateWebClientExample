@@ -8,7 +8,7 @@ export default function HomePage() {
 		accessToken,
 		refreshToken,
 		initiateShapeDiverAuth,
-	} = useShapeDiverAuth();
+	} = useShapeDiverAuth({ autoLogin: true });
 
 	return (
 		<>
