@@ -5,9 +5,15 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@shapediver/sdk.geometry-api-sdk-v2':
+    specifier: ^2.9.1
+    version: 2.9.1
   '@shapediver/sdk.platform-api-sdk-v1':
-    specifier: ^2.28.6
-    version: 2.28.6
+    specifier: ^2.28.7
+    version: 2.28.7
+  '@shapediver/sdk.stargate-sdk-v1':
+    specifier: ^1.6.1
+    version: 1.6.1
   globals:
     specifier: ^16.4.0
     version: 16.4.0
@@ -2867,8 +2873,8 @@ packages:
     resolution: {integrity: sha512-5EwMtOqvJMMa3HbmxLlF74e+3/HhwBTMcvt3nqVJgGCozO6hzIPOBlwm8mGVNR9SN2IJpxSnlxczyDjcn7qIyw==}
     dev: false
 
-  /@shapediver/api.platform-api-dto-v1@2.28.6:
-    resolution: {integrity: sha512-vynUfjZz0KTcu9Ae9wekURsaiIm7qNO6CBVt75CMekyZCoCYqQ1MIgMeGrKaSQQgSPY4jKsMv+4xZJ1gl2+BqA==}
+  /@shapediver/api.platform-api-dto-v1@2.28.7:
+    resolution: {integrity: sha512-uS2a+aV27ZVuB6qneBmKlF3JV9sI4az1ci7uqNWGUxY995AJiclG4Dgkf1cSRL/rQondM9FELhssXqRWQiBLkg==}
     dependencies:
       '@types/q': 1.5.8
       chargebee-typescript: 2.16.0
@@ -2882,15 +2888,39 @@ packages:
       - debug
     dev: false
 
-  /@shapediver/sdk.platform-api-sdk-v1@2.28.6:
-    resolution: {integrity: sha512-eUs8V0TQNtZSMs4AdWWpPwUlNS32DoGbJXwOhvevDcgoP+v94JTJcJUXGDH5iSWpJLX+Kgsb4QTn9uZS4t0Nyw==}
+  /@shapediver/sdk.platform-api-sdk-v1@2.28.7:
+    resolution: {integrity: sha512-3F6jm5T5jEjrrSTXgX0hw44e5JVBNOH5i3QFK3ssXLny6Fy8zAIJH2vmNpKgnLfFYd5sXUqTyOts+qW8Q5MHzw==}
     dependencies:
-      '@shapediver/api.platform-api-dto-v1': 2.28.6
+      '@shapediver/api.platform-api-dto-v1': 2.28.7
       '@shapediver/sdk.geometry-api-sdk-v2': 2.9.1
       axios: 1.12.2
       jwt-decode: 3.1.2
     transitivePeerDependencies:
       - debug
+    dev: false
+
+  /@shapediver/sdk.stargate-sdk-core@1.3.1:
+    resolution: {integrity: sha512-94Zto7YO7mA1xGPEjMNK6y6eL6iONdFnb7NQYnhq2sz9H06Rs9/RHIXpUjSLOtBbT9L2i1fmUNxharQngG1E6w==}
+    dependencies:
+      uuid: 9.0.1
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+    dev: false
+
+  /@shapediver/sdk.stargate-sdk-v1@1.6.1:
+    resolution: {integrity: sha512-qM/kOWmLcXrK6uirZH78D41bbNkh1EYtKvkvSM+z/fIsGKZ9fzINw3R5C62IAlDEeM/m5at5S3SrYv+u4DHKrg==}
+    dependencies:
+      '@shapediver/sdk.stargate-sdk-core': 1.3.1
+      '@types/node': 20.19.17
+      '@types/uuid': 9.0.8
+      ajv: 8.17.1
+      jsonschema: 1.5.0
+      uuid: 9.0.1
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
     dev: false
 
   /@sinclair/typebox@0.24.51:
@@ -3494,6 +3524,10 @@ packages:
 
   /@types/trusted-types@2.0.7:
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
+    dev: false
+
+  /@types/uuid@9.0.8:
+    resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
     dev: false
 
   /@types/ws@8.18.1:
@@ -8522,6 +8556,10 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: false
 
+  /jsonschema@1.5.0:
+    resolution: {integrity: sha512-K+A9hhqbn0f3pJX17Q/7H6yQfD/5OXgdrR5UE12gMXCiN9D5Xq2o5mddV2QEcX/bjla99ASsAAQUyMCCRWAEhw==}
+    dev: false
+
   /jsx-ast-utils@3.3.5:
     resolution: {integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==}
     engines: {node: '>=4.0'}
@@ -11916,6 +11954,11 @@ packages:
 
   /uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    hasBin: true
+    dev: false
+
+  /uuid@9.0.1:
+    resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
     hasBin: true
     dev: false
 

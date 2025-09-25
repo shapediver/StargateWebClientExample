@@ -2,13 +2,15 @@ import {
 	create,
 	isPBInvalidGrantOAuthResponseError,
 	isPBInvalidRequestOAuthResponseError,
+	isPBOAuthResponseError,
+	SdPlatformSdk,
 } from "@shapediver/sdk.platform-api-sdk-v1";
 import {useCallback, useEffect, useState} from "react";
 
 const refreshTokenKey = "shapediver_refresh_token";
 const codeVerifierKey = "shapediver_code_verifier";
 const oauthStateKey = "shapediver_oauth_state";
-const authBaseUrl = "https://dev-wwwcdn.us-east-1.shapediver.com";
+const authBaseUrl = "https://www.shapediver.com";
 const authEndPoint = `${authBaseUrl}/oauth/authorize`;
 const tokenEndPoint = `${authBaseUrl}/oauth/token`;
 const clientId = "660310c8-50f4-4f47-bd78-9c7ede8e659b";
@@ -82,6 +84,12 @@ export default function useShapeDiverAuth(props?: Props): {
 	authUsingRefreshToken: () => Promise<void>;
 	/** Authentication state. */
 	authState: ShapeDiverAuthStateType;
+	/** The base URL of the ShapeDiver platform. */
+	platformBaseUrl: string;
+	/** The client id used to authenticate. */
+	clientId: string;
+	/** ShapeDiver Platform SDK, authenticated or anonymous depending on auth state. */
+	platformSdk: SdPlatformSdk;
 } {
 	const {autoLogin = false} = props || {};
 
@@ -96,6 +104,9 @@ export default function useShapeDiverAuth(props?: Props): {
 		verifier: string;
 	} | null>(null);
 	const [accessToken, setAccessToken] = useState<string | undefined>();
+	const [platformSdk] = useState<SdPlatformSdk>(
+		create({clientId, baseUrl: authBaseUrl}),
+	);
 	// try to get refresh token from local storage
 	const [refreshToken, setRefreshToken_] = useState(
 		window.localStorage.getItem(refreshTokenKey),
@@ -169,34 +180,31 @@ export default function useShapeDiverAuth(props?: Props): {
 	useEffect(() => {
 		if (codeData) {
 			const getToken = async () => {
-				const response = await fetch(tokenEndPoint, {
-					method: "POST",
-					body: JSON.stringify({
-						grant_type: "authorization_code",
-						client_id: clientId,
-						code: codeData.code,
-						redirect_uri: getRedirectUri(),
-						code_verifier: codeData.verifier,
-					}),
-					headers: {
-						"Content-Type": "application/json",
-					},
-				});
-				if (response.ok) {
-					const data = (await response.json()) as {
-						access_token: string;
-						refresh_token: string;
-					};
+				try {
+					const data =
+						await platformSdk.authorization.authorizationCodePkce(
+							codeData.code,
+							codeData.verifier,
+							getRedirectUri(),
+						);
 					setAccessToken(data.access_token);
-					setRefreshToken(data.refresh_token);
+					setRefreshToken(data.refresh_token ?? null);
 					setAuthState("authenticated");
-				} else {
-					const data = (await response.json()) as {
-						error?: string;
-						error_description?: string;
-					};
-					setError(data.error ?? null);
-					setErrorDescription(data.error_description ?? null);
+				} catch (error) {
+					if (isPBOAuthResponseError(error)) {
+						setError(error.error ?? null);
+						setErrorDescription(error.error_description ?? null);
+					} else {
+						setError("Unknown token exchange error");
+						setErrorDescription(
+							error &&
+								typeof error === "object" &&
+								"message" in error &&
+								typeof error.message === "string"
+								? error.message
+								: "Unknown token exchange error",
+						);
+					}
 					setAccessToken(undefined);
 					setRefreshToken(null);
 					setAuthState("not_authenticated");
@@ -206,7 +214,7 @@ export default function useShapeDiverAuth(props?: Props): {
 			setAuthState("authentication_in_progress");
 			getToken();
 		}
-	}, [codeData]);
+	}, [codeData, platformSdk]);
 
 	// callback for auth using refresh token
 	const authUsingRefreshToken = useCallback(async () => {
@@ -215,12 +223,10 @@ export default function useShapeDiverAuth(props?: Props): {
 			setError(null);
 			setErrorDescription(null);
 			setCodeData(null);
-			// create SDK
-			const client = create({clientId, baseUrl: authBaseUrl});
 			try {
-				// TODO: pass refresh token
 				setAuthState("authentication_in_progress");
-				const data = await client.authorization.refreshToken();
+				const data =
+					await platformSdk.authorization.refreshToken(refreshToken);
 				setAccessToken(data.access_token);
 				setRefreshToken(data.refresh_token ?? null);
 				setAuthState("authenticated");
@@ -249,7 +255,7 @@ export default function useShapeDiverAuth(props?: Props): {
 				}
 			}
 		}
-	}, [refreshToken]);
+	}, [refreshToken, platformSdk]);
 
 	// optionally automatically log in
 	useEffect(() => {
@@ -303,5 +309,8 @@ export default function useShapeDiverAuth(props?: Props): {
 		errorDescription,
 		authUsingRefreshToken,
 		authState,
+		platformBaseUrl: authBaseUrl,
+		clientId,
+		platformSdk,
 	};
 }
