@@ -1,0 +1,307 @@
+import {
+	create,
+	isPBInvalidGrantOAuthResponseError,
+	isPBInvalidRequestOAuthResponseError,
+	isPBOAuthResponseError,
+	SdPlatformSdk,
+} from "@shapediver/sdk.platform-api-sdk-v1";
+import {useCallback, useEffect, useState} from "react";
+
+const refreshTokenKey = "shapediver_refresh_token";
+const codeVerifierKey = "shapediver_code_verifier";
+const oauthStateKey = "shapediver_oauth_state";
+const authBaseUrl = "https://staging-wwwcdn.us-east-1.shapediver.com";
+const authEndPoint = `${authBaseUrl}/oauth/authorize`;
+const clientId = "A085FCC5-6EEB-46A6-A381-ADCEDB6E59D6"; // "660310c8-50f4-4f47-bd78-9c7ede8e659b";
+
+async function sha256(buffer: Uint8Array<ArrayBuffer>): Promise<ArrayBuffer> {
+	return await crypto.subtle.digest("SHA-256", buffer);
+}
+
+function base64UrlEncode(buffer: ArrayBuffer) {
+	const bytes = new Uint8Array(buffer);
+	let binary = "";
+	for (let i = 0; i < bytes.byteLength; i++) {
+		binary += String.fromCharCode(bytes[i]);
+	}
+	// see https://developer.mozilla.org/en-US/docs/Glossary/Base64#url_and_filename_safe_base64
+	return btoa(binary)
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=+$/, "");
+}
+
+function generateRandomString(length: number) {
+	const charset =
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	const values = new Uint8Array(length);
+	crypto.getRandomValues(values);
+	let result = "";
+	for (let i = 0; i < length; i++) {
+		result += charset[values[i] % charset.length];
+	}
+	return result;
+}
+
+function clearBrowserStorage() {
+	window.localStorage.removeItem(refreshTokenKey);
+	window.localStorage.removeItem(codeVerifierKey);
+	window.localStorage.removeItem(oauthStateKey);
+}
+
+/** Get the URL to which the ShapeDiver Platform should redirect back after authentication */
+function getRedirectUri() {
+	return window.location.origin + "/";
+}
+
+interface Props {
+	/** Log in automatically if a refresh token is available. */
+	autoLogin?: boolean;
+}
+
+type ShapeDiverAuthStateType =
+	| "not_authenticated"
+	| "refresh_token_present"
+	| "authenticated"
+	| "authentication_in_progress";
+
+/**
+ * Hook to manage authentication with ShapeDiver via OAuth2 Authorization Code Flow with PKCE.
+ * @returns
+ */
+export default function useShapeDiverAuth(props?: Props): {
+	/** The access token. */
+	accessToken: string | undefined;
+	/** Callback for initiating authorization code flow via the ShapeDiver platform. */
+	initiateShapeDiverAuth: () => Promise<void>;
+	/** Error type, if any. */
+	error: string | null;
+	/** Error description, if any. */
+	errorDescription: string | null;
+	/** Authenticate using the current refresh token. No need to call this if autoLogin is true. */
+	authUsingRefreshToken: () => Promise<void>;
+	/** Authentication state. */
+	authState: ShapeDiverAuthStateType;
+	/** ShapeDiver Platform SDK, authenticated or anonymous depending on auth state. */
+	platformSdk: SdPlatformSdk;
+} {
+	const {autoLogin = false} = props || {};
+
+	// check for error and error description in URL parameters
+	const params = new URLSearchParams(window.location.search);
+	const [error, setError] = useState(params.get("error"));
+	const [errorDescription, setErrorDescription] = useState(
+		params.get("error_description"),
+	);
+	const [codeData, setCodeData] = useState<{
+		code: string;
+		verifier: string;
+	} | null>(null);
+	const [accessToken, setAccessToken] = useState<string | undefined>();
+	const [platformSdk] = useState<SdPlatformSdk>(
+		create({clientId, baseUrl: authBaseUrl}),
+	);
+	// try to get refresh token from local storage
+	const [refreshToken, setRefreshToken_] = useState(
+		window.localStorage.getItem(refreshTokenKey),
+	);
+
+	const setRefreshToken = useCallback((token: string | null) => {
+		if (token) {
+			window.localStorage.setItem(refreshTokenKey, token);
+		} else {
+			window.localStorage.removeItem(refreshTokenKey);
+		}
+		setRefreshToken_(token);
+	}, []);
+
+	// determine initial auth state
+	let authState_: ShapeDiverAuthStateType = refreshToken
+		? autoLogin
+			? "authentication_in_progress"
+			: "refresh_token_present"
+		: "not_authenticated";
+
+	if (error) {
+		// if there is an error, clear the local storage
+		clearBrowserStorage();
+	} else {
+		// check if we got a code and state in the URL parameters
+		const code = params.get("code");
+		const state = params.get("state");
+		if (state && code) {
+			// remove code and state from URL to avoid re-processing
+			params.delete("code");
+			params.delete("state");
+			const url = new URL(window.location.href);
+			url.searchParams.delete("code");
+			url.searchParams.delete("state");
+			window.history.replaceState({}, document.title, url.toString());
+			// verify state
+			const storedState = window.localStorage.getItem(oauthStateKey);
+			const storedVerifier = window.localStorage.getItem(codeVerifierKey);
+			if (storedState === null) {
+				setError("missing stored state");
+				setErrorDescription(
+					"No stored state found, please initiate the authentication flow again.",
+				);
+			} else if (storedVerifier === null) {
+				setError("missing stored verifier");
+				setErrorDescription(
+					"No stored code verifier found, please initiate the authentication flow again.",
+				);
+			} else if (state === window.localStorage.getItem(oauthStateKey)) {
+				// state is valid, now exchange the code for a token (handled in useEffect below)
+				setCodeData({code, verifier: storedVerifier});
+				authState_ = "authentication_in_progress";
+			} else {
+				// state is invalid, clear local storage and return error
+				setError("state mismatch");
+				setErrorDescription(
+					"The returned state does not match the stored state.",
+				);
+			}
+			window.localStorage.removeItem(oauthStateKey);
+			window.localStorage.removeItem(codeVerifierKey);
+		}
+	}
+
+	// define auth state
+	const [authState, setAuthState] =
+		useState<ShapeDiverAuthStateType>(authState_);
+
+	// exchange code for token
+	useEffect(() => {
+		if (codeData) {
+			const getToken = async () => {
+				try {
+					const data =
+						await platformSdk.authorization.authorizationCodePkce(
+							codeData.code,
+							codeData.verifier,
+							getRedirectUri(),
+						);
+					setAccessToken(data.access_token);
+					setRefreshToken(data.refresh_token ?? null);
+					setAuthState("authenticated");
+				} catch (error) {
+					if (isPBOAuthResponseError(error)) {
+						setError(error.error ?? null);
+						setErrorDescription(error.error_description ?? null);
+					} else {
+						setError("Unknown token exchange error");
+						setErrorDescription(
+							error &&
+								typeof error === "object" &&
+								"message" in error &&
+								typeof error.message === "string"
+								? error.message
+								: "Unknown token exchange error",
+						);
+					}
+					setAccessToken(undefined);
+					setRefreshToken(null);
+					setAuthState("not_authenticated");
+				}
+			};
+			setCodeData(null);
+			setAuthState("authentication_in_progress");
+			getToken();
+		}
+	}, [codeData, platformSdk]);
+
+	// callback for auth using refresh token
+	const authUsingRefreshToken = useCallback(async () => {
+		if (refreshToken) {
+			// reset state
+			setError(null);
+			setErrorDescription(null);
+			setCodeData(null);
+			try {
+				setAuthState("authentication_in_progress");
+				const data =
+					await platformSdk.authorization.refreshToken(refreshToken);
+				setAccessToken(data.access_token);
+				setRefreshToken(data.refresh_token ?? null);
+				setAuthState("authenticated");
+			} catch (error) {
+				if (
+					isPBInvalidRequestOAuthResponseError(error) || // <-- thrown if the refresh token is not valid anymore or there is none
+					isPBInvalidGrantOAuthResponseError(error) // <-- thrown if the refresh token is generally invalid
+				) {
+					setAccessToken(undefined);
+					setRefreshToken(null);
+					setAuthState("not_authenticated");
+					setError("invalid refresh token");
+					setErrorDescription(
+						"The stored refresh token is invalid, please log in again.",
+					);
+					throw error;
+				} else {
+					setAccessToken(undefined);
+					setRefreshToken(null);
+					setAuthState("not_authenticated");
+					setError("refresh token login failed");
+					setErrorDescription(
+						"The refresh token login failed, please log in again.",
+					);
+					throw error;
+				}
+			}
+		}
+	}, [refreshToken, platformSdk]);
+
+	// optionally automatically log in
+	useEffect(() => {
+		if (autoLogin && refreshToken && !accessToken) authUsingRefreshToken();
+	}, [autoLogin, refreshToken, accessToken]);
+
+	// callback for initiating the authorization code flow via the ShapeDiver platform
+	const initiateShapeDiverAuth = useCallback(async () => {
+		// reset state
+		setError(null);
+		setErrorDescription(null);
+		setCodeData(null);
+		setAccessToken(undefined);
+		setRefreshToken(null);
+		setAuthState("authentication_in_progress");
+		// clear previous tokens and state
+		clearBrowserStorage();
+		// Create a 64 character random string (from characters a-zA-Z0-9), we call this the secret code verifier.
+		const codeVerifier = generateRandomString(64);
+		window.localStorage.setItem(codeVerifierKey, codeVerifier);
+		// get unix timestamp in seconds
+		const timestamp = Math.floor(Date.now() / 1000);
+		// create state
+		const _state = `${codeVerifier}:${authEndPoint}:${clientId}:${timestamp}`;
+		const encoder = new TextEncoder();
+		const state = base64UrlEncode(await sha256(encoder.encode(_state)));
+		window.localStorage.setItem(oauthStateKey, state);
+		const code_challenge = base64UrlEncode(
+			await sha256(encoder.encode(codeVerifier)),
+		);
+
+		// construct the redirection URL
+		const params = new URLSearchParams();
+		params.append("state", state);
+		params.append("response_type", "code");
+		params.append("client_id", clientId);
+		params.append("code_challenge", code_challenge);
+		params.append("code_challenge_method", "S256");
+		params.append("redirect_uri", getRedirectUri());
+		const redirectUrl = `${authEndPoint}?${params.toString()}`;
+
+		// redirect to the authorization endpoint
+		window.location.href = redirectUrl;
+	}, []);
+
+	return {
+		accessToken,
+		initiateShapeDiverAuth,
+		error,
+		errorDescription,
+		authUsingRefreshToken,
+		authState,
+		platformSdk,
+	};
+}
