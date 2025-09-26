@@ -1,14 +1,23 @@
-import {FileApi, UtilsApi} from "@shapediver/sdk.geometry-api-sdk-v2";
+import {
+	ExportApi,
+	FileApi,
+	ResComputationStatus,
+	ResExport,
+	ResExportDefinitionType,
+	UtilsApi,
+} from "@shapediver/sdk.geometry-api-sdk-v2";
 import {
 	ISdStargateBakeDataCommandDto,
 	ISdStargateBakeDataReplyDto,
 	ISdStargateExportFileCommandDto,
 	ISdStargateExportFileReplyDto,
+	ISdStargateExportFileResultEnum,
 	ISdStargateGetDataCommandDto,
 	ISdStargateGetDataReplyDto,
 	ISdStargateGetDataResultEnum,
 	ISdStargateGetSupportedDataReplyDto,
 } from "@shapediver/sdk.stargate-sdk-v1";
+import {fetchFileWithToken} from "@shapediver/viewer.utils.mime-type";
 import {useCallback} from "react";
 import {SessionData} from "./useShapeDiverStargate";
 
@@ -149,5 +158,55 @@ export default function useStargateHandlers(): {
 		[],
 	);
 
-	return {getDataCommandHandler, supportedData};
+	// example handler for the EXPORT FILE command
+	const exportFileCommandHandler = useCallback(
+		async (
+			{parameters, export: {id, index}}: ISdStargateExportFileCommandDto,
+			{config, session}: SessionData,
+		): Promise<ISdStargateExportFileReplyDto> => {
+			// get the definition of the export which should be downloaded
+			const exportDef = session.exports![id];
+			if (exportDef.type !== ResExportDefinitionType.DOWNLOAD)
+				return {
+					info: {
+						message: "Export is not of type DOWNLOAD.",
+						result: ISdStargateExportFileResultEnum.NOTHING,
+					},
+				};
+			// request the export
+			const {
+				data: {exports: exportResults},
+			} = await new ExportApi(config).computeExports(session.sessionId, {
+				parameters,
+				exports: [id],
+			});
+			const exportResult = exportResults![id] as ResExport;
+			if (
+				exportResult.status_collect !== ResComputationStatus.SUCCESS ||
+				exportResult.status_computation !== ResComputationStatus.SUCCESS
+			)
+				return {
+					info: {
+						message: "Export computation was not successful.",
+						result: ISdStargateExportFileResultEnum.NOTHING,
+					},
+				};
+			// fetch the exported file
+			const {href, size} = exportResult.content![index];
+			await fetchFileWithToken(
+				href,
+				exportResult.filename!,
+				config.accessToken as string,
+			);
+			return {
+				info: {
+					message: `File ${exportResult.filename} downloaded successfully (${size} bytes).`,
+					result: ISdStargateExportFileResultEnum.SUCCESS,
+				},
+			};
+		},
+		[],
+	);
+
+	return {getDataCommandHandler, exportFileCommandHandler, supportedData};
 }
