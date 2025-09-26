@@ -4,6 +4,7 @@ import useShapeDiverStargate from "~/hooks/useShapeDiverStargate";
 import useStargateHandlers from "~/hooks/useStargateHandlers";
 
 export default function HomePage() {
+	// call hook used to manage authentication with ShapeDiver via OAuth2 Authorization Code Flow with PKCE
 	const {
 		error,
 		errorDescription,
@@ -13,7 +14,11 @@ export default function HomePage() {
 		authState,
 		platformSdk,
 	} = useShapeDiverAuth({ autoLogin: true });
+
+	// example handlers for the ShapeDiver Stargate service
 	const handlers = useStargateHandlers();
+
+	// call hook used to register as a client for the ShapeDiver Stargate service, using the example handlers
 	const { stargateSdk, isActive } = useShapeDiverStargate({
 		accessToken,
 		platformSdk,

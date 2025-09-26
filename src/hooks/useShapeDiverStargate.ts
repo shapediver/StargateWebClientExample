@@ -50,22 +50,38 @@ interface Props {
 	accessToken: string | undefined;
 	/** The platform SDK to use. */
 	platformSdk: SdPlatformSdk;
-	/** Supported data. */
+	/**
+	 * Supported data. Use this to specify which ShapeDiver parameter types,
+	 * file endings, and content types are supported by the handlers.
+	 */
 	supportedData: Partial<ISdStargateGetSupportedDataReplyDto>;
-	/** Handler for command messages for which no handler is registered. */
+	/**
+	 * Handler for command messages for which no handler is registered.
+	 * Typically there is no need to provide this handler.
+	 * The default handler logs to the browser console.
+	 */
 	serverCommandHandler?: (payload: unknown) => void;
 	/**
 	 * Handler for connection errors, called if an error message has been
 	 * received from the Stargate server.
+	 * The default handler logs to the browser console.
 	 */
 	connectionErrorHandler?: (msg: string) => void;
 	/**
 	 * Handler called when the established connection is closed by the Stargate server
-	 * or other external circumstances
+	 * or other external circumstances.
+	 * The default handler logs to the browser console.
 	 */
 	disconnectHandler?: (msg: string) => void;
 	/**
-	 * Handler for the get data command.
+	 * Handler for the GET DATA command. The GET DATA command handler
+	 * is called whenever the user requests data for an input (for a parameter)
+	 * from a client application, by clicking on the corresponding UI element.
+	 * @see https://help.shapediver.com/doc/inputs-and-outputs
+	 *
+	 * This extends the default handler by providing session data,
+	 * which can be used to interact with the corresponding
+	 * ShapeDiver model via the Geometry API.
 	 * @param data
 	 * @param sessionData
 	 * @returns
@@ -75,7 +91,14 @@ interface Props {
 		sessionData: SessionData,
 	) => Promise<ISdStargateGetDataReplyDto>;
 	/**
-	 * Handler for the bake data command.
+	 * Handler for the BAKE DATA command. The BAKE DATA command handler
+	 * is called whenever the user requests baking of data from an output
+	 * to a client application, by clicking on the corresponding UI element.
+	 * @see https://help.shapediver.com/doc/shapediver-output#ShapeDiverOutput-clientUsagewithdesktopclients
+	 *
+	 * This extends the default handler by providing session data,
+	 * which can be used to interact with the corresponding
+	 * ShapeDiver model via the Geometry API.
 	 * @param data
 	 * @param sessionData
 	 * @returns
@@ -85,7 +108,13 @@ interface Props {
 		sessionData: SessionData,
 	) => Promise<ISdStargateBakeDataReplyDto>;
 	/**
-	 * Handler for the export file command.
+	 * Handler for the EXPORT FILE command. The EXPORT FILE command handler
+	 * is called whenever the user requests the export of a file
+	 * via a client application, by clicking on the corresponding UI element.
+	 *
+	 * This extends the default handler by providing session data,
+	 * which can be used to interact with the corresponding
+	 * ShapeDiver model via the Geometry API.
 	 * @param data
 	 * @param sessionData
 	 * @returns
@@ -101,9 +130,17 @@ interface Props {
  * @returns
  */
 export default function useShapeDiverStargate(props: Props): {
-	/** The platform SDK. In case no access token is present, an unauthenticated SDK will be returned. */
+	/**
+	 * The Stargate SDK. Typically there is no need to register further
+	 * command handlers, as this is already taken care of by this hook.
+	 */
 	stargateSdk: ISdStargateSdk | null;
-	/** True if this Stargate client is currently being used by the user from a ShapeDiver App. */
+	/**
+	 * True if this Stargate client is currently being used by the user
+	 * from a ShapeDiver App. This is based on the STATUS command,
+	 * which is sent by the App every 30 seconds. If no STATUS command
+	 * has been received for 35 seconds, this property will be set to false.
+	 */
 	isActive: boolean;
 } {
 	const {

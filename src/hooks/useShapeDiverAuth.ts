@@ -49,6 +49,7 @@ function clearBrowserStorage() {
 	window.localStorage.removeItem(oauthStateKey);
 }
 
+/** Get the URL to which the ShapeDiver Platform should redirect back after authentication */
 function getRedirectUri() {
 	return window.location.origin + "/";
 }
@@ -71,8 +72,6 @@ type ShapeDiverAuthStateType =
 export default function useShapeDiverAuth(props?: Props): {
 	/** The access token. */
 	accessToken: string | undefined;
-	/** The refresh token. */
-	refreshToken: string | null;
 	/** Callback for initiating authorization code flow via the ShapeDiver platform. */
 	initiateShapeDiverAuth: () => Promise<void>;
 	/** Error type, if any. */
@@ -83,10 +82,6 @@ export default function useShapeDiverAuth(props?: Props): {
 	authUsingRefreshToken: () => Promise<void>;
 	/** Authentication state. */
 	authState: ShapeDiverAuthStateType;
-	/** The base URL of the ShapeDiver platform. */
-	platformBaseUrl: string;
-	/** The client id used to authenticate. */
-	clientId: string;
 	/** ShapeDiver Platform SDK, authenticated or anonymous depending on auth state. */
 	platformSdk: SdPlatformSdk;
 } {
@@ -302,14 +297,11 @@ export default function useShapeDiverAuth(props?: Props): {
 
 	return {
 		accessToken,
-		refreshToken,
 		initiateShapeDiverAuth,
 		error,
 		errorDescription,
 		authUsingRefreshToken,
 		authState,
-		platformBaseUrl: authBaseUrl,
-		clientId,
 		platformSdk,
 	};
 }
