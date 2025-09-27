@@ -10,7 +10,13 @@ import {useCallback, useEffect, useState} from "react";
 const refreshTokenKey = "shapediver_refresh_token";
 const codeVerifierKey = "shapediver_code_verifier";
 const oauthStateKey = "shapediver_oauth_state";
-const authBaseUrl = "https://staging-wwwcdn.us-east-1.shapediver.com";
+// Note: Local testing is not allowed when using the productive ShapeDiver platform.
+// However, you can use a service like https://ngrok.com/ to provide a public URL for your localhost.
+// Your public URL will need to be whitelisted by ShapeDiver. Write to us at contact@shapediver.com
+const authBaseUrl =
+	window.location.hostname === "localhost"
+		? "https://staging-wwwcdn.us-east-1.shapediver.com"
+		: "https://www.shapediver.com";
 const authEndPoint = `${authBaseUrl}/oauth/authorize`;
 const clientId = "A085FCC5-6EEB-46A6-A381-ADCEDB6E59D6"; // "660310c8-50f4-4f47-bd78-9c7ede8e659b";
 
@@ -51,7 +57,7 @@ function clearBrowserStorage() {
 
 /** Get the URL to which the ShapeDiver Platform should redirect back after authentication */
 function getRedirectUri() {
-	return window.location.origin + "/";
+	return window.location.origin + window.location.pathname;
 }
 
 interface Props {

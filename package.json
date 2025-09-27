@@ -20,6 +20,7 @@
 		"build": "tsc && vite build",
 		"optimize": "tsc && vite optimize --force",
 		"preview": "vite preview",
+		"deploy-test": "./deploy-test.sh stargate/v1/main",
 		"eslint": "eslint .",
 		"prettier": "prettier --write ./src/ ./*.ts ./eslint.config.mjs ./vite.config.ts ./tsconfig.json ./package.json",
 		"test": "jest"

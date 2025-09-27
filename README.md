@@ -36,6 +36,13 @@ Note the "No active client found" message, telling us that no client application
 
 ### Start the local React application
 
+> [!WARNING] 
+> Local testing is not allowed when using the productive ShapeDiver platform.
+> However, you can use a service like https://ngrok.com/ to provide a public URL for your localhost.
+> Your public URL will need to be whitelisted by ShapeDiver. Write to us at contact@shapediver.com
+> and ask us about it. 
+> As an alternative, you can test a deployed version of this example [here](https://appbuilder.shapediver.com/stargate/v1/main/development/). 
+
 As a prerequisite install [Node.js 20](https://nodejs.org/en/about/previous-releases) and [pnpm](https://pnpm.io/). 
 
 Run `pnpm i` to install the required dependencies. 
