@@ -100,5 +100,10 @@ Code specific to this example:
 ## Planned extensions
 
   * Extend the "GET DATA" handler by an example on how to send data to [structured inputs](https://help.shapediver.com/doc/inputs-and-outputs#Defininginputs-Usefloatingparametersasstructuredinputs). 
-  * Implement an example "BAKE DATA" handler, allowing to get structured data from [output components](https://help.shapediver.com/doc/shapediver-output#ShapeDiverOutput-clientUsagewithdesktopclients). 
+  * Implement an example "BAKE DATA" handler, allowing to get structured data from [output components](https://help.shapediver.com/doc/shapediver-output#ShapeDiverOutput-clientUsagewithdesktopclients).
+
+## Related links
+
+You can find a similar example for connecting .NET applications to ShapeDiver [here](https://github.com/shapediver/StargateDotNetClientExample).
+
  
