@@ -28,17 +28,17 @@ const exampleFiles: {filename: string; contentType: string; href: string}[] = [
 	{
 		filename: "test.json",
 		contentType: "application/json",
-		href: window.location.origin + "/test.json",
+		href: window.location.origin + window.location.pathname + "test.json",
 	},
 	{
 		filename: "test.3dm",
 		contentType: "model/vnd.3dm",
-		href: window.location.origin + "/test.3dm",
+		href: window.location.origin + window.location.pathname + "test.3dm",
 	},
 	{
 		filename: "test.dwg",
 		contentType: "application/dwg",
-		href: window.location.origin + "/test.dwg",
+		href: window.location.origin + window.location.pathname + "test.dwg",
 	},
 ];
 
