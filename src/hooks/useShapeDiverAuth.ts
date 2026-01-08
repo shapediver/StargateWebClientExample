@@ -18,7 +18,7 @@ const authBaseUrl =
 		? "https://staging-wwwcdn.us-east-1.shapediver.com"
 		: "https://www.shapediver.com";
 const authEndPoint = `${authBaseUrl}/oauth/authorize`;
-const clientId = "A085FCC5-6EEB-46A6-A381-ADCEDB6E59D6"; // "660310c8-50f4-4f47-bd78-9c7ede8e659b";
+const clientId = "660310c8-50f4-4f47-bd78-9c7ede8e659b";
 
 async function sha256(buffer: Uint8Array<ArrayBuffer>): Promise<ArrayBuffer> {
 	return await crypto.subtle.digest("SHA-256", buffer);
